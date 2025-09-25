@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a0014;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1a0826;stop-opacity:1" />
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" fill="url(#bgGradient)" rx="64" ry="64"/>
+
+  <!-- Border -->
+  <rect width="496" height="496" x="8" y="8" fill="none" stroke="rgba(139,92,246,0.3)" stroke-width="2" rx="56" ry="56"/>
+
+  <!-- Text Group -->
+  <g transform="translate(256, 280)">
+    <!-- rip text -->
+    <text x="-180" y="0" font-family="Arial, sans-serif" font-size="120" font-weight="900" fill="rgba(255,255,255,0.85)" text-anchor="middle">
+      <tspan x="-140">r</tspan>
+      <tspan x="-80">i</tspan>
+      <tspan x="-30">p</tspan>
+    </text>
+
+    <!-- V in purple with glow -->
+    <text x="20" y="-10" font-family="Arial, sans-serif" font-size="160" font-weight="900" fill="#8b5cf6" filter="url(#glow)" text-anchor="middle">V</text>
+
+    <!-- ID text -->
+    <text x="140" y="0" font-family="Arial, sans-serif" font-size="120" font-weight="900" fill="rgba(255,255,255,0.85)" text-anchor="middle">
+      <tspan x="90">I</tspan>
+      <tspan x="140">D</tspan>
+    </text>
+  </g>
+</svg>

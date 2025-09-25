@@ -13,7 +13,7 @@
     "active": true,
     "category": "Utility",
     "copyright": "",
-    "externalBin": [],
+    "externalBin": ["binaries/yt-dlp"],
     "icon": [
       "icons/icon.png"
     ],
@@ -36,14 +36,14 @@
         "fullscreen": false,
         "height": 700,
         "resizable": true,
-        "title": "ripVID",
         "width": 900,
         "center": true,
-        "decorations": true,
+        "decorations": false,
         "transparent": false,
         "alwaysOnTop": false,
         "skipTaskbar": false,
-        "theme": "Dark"
+        "theme": "Dark",
+        "visible": false
       }
     ],
     "security": {
@@ -54,8 +54,20 @@
           "windows": ["main"],
           "permissions": [
             "core:default",
+            "core:webview:allow-webview-close",
+            "core:webview:allow-webview-position",
+            "core:webview:allow-webview-size",
+            "core:window:allow-show",
+            "core:window:allow-close",
+            "core:window:allow-minimize",
+            "core:window:allow-maximize",
+            "core:window:allow-unmaximize",
+            "core:window:allow-is-maximized",
+            "core:window:allow-start-dragging",
             "shell:allow-open",
             "shell:allow-execute",
+            "shell:allow-spawn",
+            "shell:default",
             "dialog:allow-save"
           ]
         }

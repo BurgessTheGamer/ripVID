@@ -3,7 +3,9 @@ import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { homeDir, join } from '@tauri-apps/api/path'
 import { open } from '@tauri-apps/plugin-shell'
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { Save, X, Music, Youtube, Globe, Play, Layers } from 'lucide-react'
+import TitleBar from './components/TitleBar'
 import './App.css'
 
 interface DownloadProgress {
@@ -91,6 +93,13 @@ function App() {
   }, [archive])
 
   useEffect(() => {
+    // Show window once app is ready
+    const showWindow = async () => {
+      const appWindow = getCurrentWebviewWindow()
+      await appWindow.show()
+    }
+    showWindow()
+
     // Load archive from localStorage
     const saved = localStorage.getItem('ripvid-archive')
     if (saved) {
@@ -318,9 +327,17 @@ function App() {
   }
 
   return (
-    <div className="app">
-      <button
-        className={`format-toggle ${downloadFormat}`}
+    <>
+      <TitleBar />
+      <div className="app">
+        <div className="logo">
+          <span className="logo-text">rip</span>
+          <span className="logo-v">V</span>
+          <span className="logo-text">ID</span>
+        </div>
+
+        <button
+          className={`format-toggle ${downloadFormat}`}
         onClick={toggleFormat}
         aria-label={`Switch to ${downloadFormat === 'mp4' ? 'MP3' : 'MP4'}`}
       >
@@ -422,8 +439,9 @@ function App() {
             No downloads yet
           </div>
         )}
+        </div>
       </div>
-    </div>
+    </>
   )
 }
 

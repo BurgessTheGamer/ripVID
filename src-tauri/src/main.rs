@@ -6,6 +6,7 @@
 use std::process::Command;
 use std::fs;
 use tauri::Emitter;
+use tauri_plugin_shell::ShellExt;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use regex::Regex;
@@ -29,10 +30,13 @@ async fn detect_platform(url: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-async fn get_video_info(url: String) -> Result<String, String> {
-    let output = Command::new("yt-dlp")
+async fn get_video_info(url: String, app: tauri::AppHandle) -> Result<String, String> {
+    let output = app.shell()
+        .sidecar("yt-dlp")
+        .map_err(|e| e.to_string())?
         .args(&["--no-playlist", "--dump-json", &url])
         .output()
+        .await
         .map_err(|e| e.to_string())?;
 
     if output.status.success() {
@@ -46,10 +50,11 @@ async fn get_video_info(url: String) -> Result<String, String> {
 async fn download_video(
     url: String,
     output_path: String,
-    quality: String,
+    _quality: String,
     window: tauri::WebviewWindow,
+    app: tauri::AppHandle,
 ) -> Result<String, String> {
-    let mut args = vec![
+    let args = vec![
         url.clone(),
         "--no-playlist".to_string(),
         "-f".to_string(),
@@ -64,30 +69,28 @@ async fn download_video(
 
     println!("Running yt-dlp with args: {:?}", args);
 
-    let mut child = Command::new("yt-dlp")
+    let (mut rx, _child) = app.shell()
+        .sidecar("yt-dlp")
+        .map_err(|e| format!("Failed to create sidecar: {}", e))?
         .args(&args)
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
         .spawn()
         .map_err(|e| format!("Failed to spawn yt-dlp: {}", e))?;
 
     // Emit download started event immediately
     window.emit("download-started", output_path.clone()).ok();
 
-    // Take ownership of stdout and stderr
-    let stdout = child.stdout.take();
-    let stderr = child.stderr.take();
     let window_clone = window.clone();
     let window_clone2 = window.clone();
+    let window_clone3 = window.clone();
 
-    // Spawn thread to handle stdout (progress)
-    if let Some(stdout) = stdout {
-        std::thread::spawn(move || {
-            use std::io::{BufRead, BufReader};
-            let reader = BufReader::new(stdout);
+    // Spawn async task to handle command events
+    tauri::async_runtime::spawn(async move {
+        use tauri_plugin_shell::process::CommandEvent;
 
-            for line in reader.lines() {
-                if let Ok(line) = line {
+        while let Some(event) = rx.recv().await {
+            match event {
+                CommandEvent::Stdout(line_data) => {
+                    let line = String::from_utf8_lossy(&line_data).to_string();
                     println!("[stdout] {}", line);
 
                     if line.contains("[download]") && line.contains("%") {
@@ -115,18 +118,8 @@ async fn download_video(
                         }
                     }
                 }
-            }
-        });
-    }
-
-    // Spawn thread to handle stderr (status messages)
-    if let Some(stderr) = stderr {
-        std::thread::spawn(move || {
-            use std::io::{BufRead, BufReader};
-            let reader = BufReader::new(stderr);
-
-            for line in reader.lines() {
-                if let Ok(line) = line {
+                CommandEvent::Stderr(line_data) => {
+                    let line = String::from_utf8_lossy(&line_data).to_string();
                     println!("[stderr] {}", line);
 
                     // Emit status messages for important events
@@ -134,32 +127,27 @@ async fn download_video(
                         window_clone2.emit("download-status", line.clone()).ok();
                     }
                 }
-            }
-        });
-    }
-
-    // Spawn thread to wait for process completion
-    std::thread::spawn(move || {
-        let status = child.wait();
-        match status {
-            Ok(status) if status.success() => {
-                window.emit("download-complete", serde_json::json!({
-                    "success": true,
-                    "path": output_path
-                })).ok();
-            }
-            Ok(status) => {
-                let exit_code = status.code().unwrap_or(-1);
-                window.emit("download-complete", serde_json::json!({
-                    "success": false,
-                    "error": format!("Exit code: {}", exit_code)
-                })).ok();
-            }
-            Err(e) => {
-                window.emit("download-complete", serde_json::json!({
-                    "success": false,
-                    "error": e.to_string()
-                })).ok();
+                CommandEvent::Terminated(payload) => {
+                    if let Some(code) = payload.code {
+                        if code == 0 {
+                            window_clone3.emit("download-complete", serde_json::json!({
+                                "success": true,
+                                "path": output_path
+                            })).ok();
+                        } else {
+                            window_clone3.emit("download-complete", serde_json::json!({
+                                "success": false,
+                                "error": format!("Exit code: {}", code)
+                            })).ok();
+                        }
+                    } else {
+                        window_clone3.emit("download-complete", serde_json::json!({
+                            "success": false,
+                            "error": "Process terminated without exit code"
+                        })).ok();
+                    }
+                }
+                _ => {}
             }
         }
     });
@@ -210,6 +198,7 @@ async fn download_audio(
     url: String,
     output_path: String,
     window: tauri::WebviewWindow,
+    app: tauri::AppHandle,
 ) -> Result<String, String> {
     let args = vec![
         url.clone(),
@@ -229,30 +218,28 @@ async fn download_audio(
 
     println!("Running yt-dlp with args: {:?}", args);
 
-    let mut child = Command::new("yt-dlp")
+    let (mut rx, _child) = app.shell()
+        .sidecar("yt-dlp")
+        .map_err(|e| format!("Failed to create sidecar: {}", e))?
         .args(&args)
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
         .spawn()
         .map_err(|e| format!("Failed to spawn yt-dlp: {}", e))?;
 
     // Emit download started event immediately
     window.emit("download-started", output_path.clone()).ok();
 
-    // Take ownership of stdout and stderr
-    let stdout = child.stdout.take();
-    let stderr = child.stderr.take();
     let window_clone = window.clone();
     let window_clone2 = window.clone();
+    let window_clone3 = window.clone();
 
-    // Spawn thread to handle stdout (progress)
-    if let Some(stdout) = stdout {
-        std::thread::spawn(move || {
-            use std::io::{BufRead, BufReader};
-            let reader = BufReader::new(stdout);
+    // Spawn async task to handle command events
+    tauri::async_runtime::spawn(async move {
+        use tauri_plugin_shell::process::CommandEvent;
 
-            for line in reader.lines() {
-                if let Ok(line) = line {
+        while let Some(event) = rx.recv().await {
+            match event {
+                CommandEvent::Stdout(line_data) => {
+                    let line = String::from_utf8_lossy(&line_data).to_string();
                     println!("[stdout] {}", line);
 
                     if line.contains("[download]") && line.contains("%") {
@@ -280,18 +267,8 @@ async fn download_audio(
                         }
                     }
                 }
-            }
-        });
-    }
-
-    // Spawn thread to handle stderr (status messages)
-    if let Some(stderr) = stderr {
-        std::thread::spawn(move || {
-            use std::io::{BufRead, BufReader};
-            let reader = BufReader::new(stderr);
-
-            for line in reader.lines() {
-                if let Ok(line) = line {
+                CommandEvent::Stderr(line_data) => {
+                    let line = String::from_utf8_lossy(&line_data).to_string();
                     println!("[stderr] {}", line);
 
                     // Emit status messages for important events
@@ -299,32 +276,27 @@ async fn download_audio(
                         window_clone2.emit("download-status", line.clone()).ok();
                     }
                 }
-            }
-        });
-    }
-
-    // Spawn thread to wait for process completion
-    std::thread::spawn(move || {
-        let status = child.wait();
-        match status {
-            Ok(status) if status.success() => {
-                window.emit("download-complete", serde_json::json!({
-                    "success": true,
-                    "path": output_path
-                })).ok();
-            }
-            Ok(status) => {
-                let exit_code = status.code().unwrap_or(-1);
-                window.emit("download-complete", serde_json::json!({
-                    "success": false,
-                    "error": format!("Exit code: {}", exit_code)
-                })).ok();
-            }
-            Err(e) => {
-                window.emit("download-complete", serde_json::json!({
-                    "success": false,
-                    "error": e.to_string()
-                })).ok();
+                CommandEvent::Terminated(payload) => {
+                    if let Some(code) = payload.code {
+                        if code == 0 {
+                            window_clone3.emit("download-complete", serde_json::json!({
+                                "success": true,
+                                "path": output_path
+                            })).ok();
+                        } else {
+                            window_clone3.emit("download-complete", serde_json::json!({
+                                "success": false,
+                                "error": format!("Exit code: {}", code)
+                            })).ok();
+                        }
+                    } else {
+                        window_clone3.emit("download-complete", serde_json::json!({
+                            "success": false,
+                            "error": "Process terminated without exit code"
+                        })).ok();
+                    }
+                }
+                _ => {}
             }
         }
     });

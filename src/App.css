@@ -17,12 +17,13 @@ body {
   justify-content: center;
   position: relative;
   background: linear-gradient(180deg, #0a0014 0%, #1a0826 100%);
+  padding-top: 32px;
 }
 
 .format-toggle {
   position: fixed;
   left: 20px;
-  top: 20px;
+  top: 52px;
   width: 40px;
   height: 40px;
   padding: 0;
@@ -234,7 +235,7 @@ body {
 
 .archive-toggle {
   position: fixed;
-  top: 20px;
+  top: 52px;
   right: 20px;
   width: 40px;
   height: 40px;
@@ -266,7 +267,7 @@ body {
 .archive-panel {
   position: fixed;
   right: 0;
-  top: 0;
+  top: 32px;
   bottom: 0;
   width: 320px;
   background: rgba(0, 0, 0, 0.95);
@@ -445,5 +446,41 @@ body {
   color: rgba(255, 255, 255, 0.3);
   padding: 60px 32px;
   font-size: 14px;
+}
+
+.logo {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  display: flex;
+  align-items: center;
+  font-family: 'Orbitron', 'Rajdhani', 'Russo One', 'SF Mono', monospace;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -1px;
+  user-select: none;
+  z-index: 10;
+  opacity: 0.3;
+  transition: opacity 0.3s ease;
+  text-transform: uppercase;
+}
+
+.logo:hover {
+  opacity: 0.5;
+}
+
+.logo-text {
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 700;
+  text-shadow: 0 0 10px rgba(139, 92, 246, 0.2);
+}
+
+.logo-v {
+  color: rgba(139, 92, 246, 0.9);
+  font-weight: 900;
+  font-size: 38px;
+  margin: 0 -2px;
+  transform: translateY(-2px);
+  text-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
 }
 
