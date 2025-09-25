@@ -6,6 +6,7 @@ import { open } from '@tauri-apps/plugin-shell'
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { Save, X, Music, Youtube, Globe, Play, Layers } from 'lucide-react'
 import TitleBar from './components/TitleBar'
+import { UpdateChecker } from './components/UpdateChecker'
 import './App.css'
 
 interface DownloadProgress {
@@ -329,6 +330,7 @@ function App() {
   return (
     <>
       <TitleBar />
+      <UpdateChecker />
       <div className="app">
         <div className="logo">
           <span className="logo-text">rip</span>

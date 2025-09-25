@@ -1,6 +1,6 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/schema.json",
-  "identifier": "com.ripvid.app",
+  "identifier": "com.ripvid.desktop",
   "productName": "ripVID",
   "version": "2.0.0",
   "build": {
@@ -15,7 +15,9 @@
     "copyright": "",
     "externalBin": ["binaries/yt-dlp"],
     "icon": [
-      "icons/icon.png"
+      "icons/icon.png",
+      "icons/icon.ico",
+      "icons/icon.icns"
     ],
     "longDescription": "",
     "resources": [],
@@ -28,6 +30,13 @@
       "webviewInstallMode": {
         "type": "embedBootstrapper"
       }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/BurgessTheGamer/ripVID/releases/latest/download/latest.json"
+      ]
     }
   },
   "app": {
