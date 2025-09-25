@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 271 91% 65%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 271 60% 94%;
+    --secondary-foreground: 271 91% 25%;
+    --muted: 271 30% 96%;
+    --muted-foreground: 271 10% 46%;
+    --accent: 271 60% 90%;
+    --accent-foreground: 271 91% 25%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 271 30% 90%;
+    --input: 271 30% 90%;
+    --ring: 271 91% 65%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 271 50% 5%;
+    --foreground: 271 10% 95%;
+    --card: 271 50% 8%;
+    --card-foreground: 271 10% 95%;
+    --popover: 271 50% 8%;
+    --popover-foreground: 271 10% 95%;
+    --primary: 271 91% 65%;
+    --primary-foreground: 271 10% 10%;
+    --secondary: 271 30% 20%;
+    --secondary-foreground: 271 10% 95%;
+    --muted: 271 30% 25%;
+    --muted-foreground: 271 10% 60%;
+    --accent: 271 30% 25%;
+    --accent-foreground: 271 10% 95%;
+    --destructive: 0 62.8% 50%;
+    --destructive-foreground: 271 10% 95%;
+    --border: 271 30% 25%;
+    --input: 271 30% 25%;
+    --ring: 271 91% 65%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  #root {
+    @apply min-h-screen;
+  }
+}

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Purple gradient background -->
+  <defs>
+    <linearGradient id="bg-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#9333ea;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Rounded square background -->
+  <rect x="0" y="0" width="512" height="512" rx="100" fill="url(#bg-gradient)"/>
+  
+  <!-- Download arrow icon -->
+  <g transform="translate(256, 256)">
+    <!-- Arrow down -->
+    <path d="M -60 -20 L -60 60 L -100 60 L 0 160 L 100 60 L 60 60 L 60 -20 Z" 
+          fill="white" opacity="0.95"/>
+    <!-- Bottom line -->
+    <rect x="-120" y="100" width="240" height="30" rx="15" fill="white" opacity="0.95"/>
+  </g>
+</svg>
