@@ -70,9 +70,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: 'macos-latest'
-            args: '--target universal-apple-darwin'
-            os_name: 'macOS'
+          # macOS temporarily disabled - requires signing certificates
+          # Re-enable once MACOS_CERTIFICATE secret is configured
+          # - platform: 'macos-latest'
+          #   args: '--target universal-apple-darwin'
+          #   os_name: 'macOS'
           - platform: 'ubuntu-22.04'
             args: ''
             os_name: 'Linux'
