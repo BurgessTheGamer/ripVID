@@ -1,86 +1,87 @@
 {
-  "$schema": "../node_modules/@tauri-apps/cli/schema.json",
-  "identifier": "com.ripvid.desktop",
-  "productName": "ripVID",
-  "version": "2.0.0",
-  "build": {
-    "beforeDevCommand": "bun run dev",
-    "beforeBuildCommand": "bun run build",
-    "devUrl": "http://localhost:1420",
-    "frontendDist": "../dist"
-  },
-  "bundle": {
-    "active": true,
-    "category": "Utility",
-    "copyright": "",
-    "externalBin": ["binaries/yt-dlp"],
-    "icon": [
-      "icons/icon.png",
-      "icons/icon.ico",
-      "icons/icon.icns"
-    ],
-    "longDescription": "",
-    "resources": [],
-    "shortDescription": "Download videos from YouTube and X",
-    "targets": "all",
-    "windows": {
-      "digestAlgorithm": "sha256",
-      "certificateThumbprint": null,
-      "timestampUrl": "",
-      "webviewInstallMode": {
-        "type": "embedBootstrapper"
-      }
-    }
-  },
-  "plugins": {
-    "updater": {
-      "endpoints": [
-        "https://github.com/BurgessTheGamer/ripVID/releases/latest/download/latest.json"
-      ]
-    }
-  },
-  "app": {
-    "windows": [
-      {
-        "fullscreen": false,
-        "height": 700,
-        "resizable": true,
-        "width": 900,
-        "center": true,
-        "decorations": false,
-        "transparent": false,
-        "alwaysOnTop": false,
-        "skipTaskbar": false,
-        "theme": "Dark",
-        "visible": false
-      }
-    ],
-    "security": {
-      "csp": null,
-      "capabilities": [
-        {
-          "identifier": "default",
-          "windows": ["main"],
-          "permissions": [
-            "core:default",
-            "core:webview:allow-webview-close",
-            "core:webview:allow-webview-position",
-            "core:webview:allow-webview-size",
-            "core:window:allow-show",
-            "core:window:allow-close",
-            "core:window:allow-minimize",
-            "core:window:allow-maximize",
-            "core:window:allow-unmaximize",
-            "core:window:allow-is-maximized",
-            "core:window:allow-start-dragging",
-            "shell:allow-open",
-            "shell:allow-execute",
-            "shell:allow-spawn",
-            "shell:default",
-            "dialog:allow-save"
-          ]
+    "$schema": "../node_modules/@tauri-apps/cli/schema.json",
+    "identifier": "com.ripvid.desktop",
+    "productName": "ripVID",
+    "version": "2.0.0",
+    "build": {
+        "beforeDevCommand": "npm run dev",
+        "beforeBuildCommand": "npm run build",
+        "devUrl": "http://localhost:1420",
+        "frontendDist": "../dist"
+    },
+    "bundle": {
+        "active": true,
+        "category": "Utility",
+        "copyright": "Copyright (c) 2024 ripVID",
+        "externalBin": [
+            "binaries/yt-dlp",
+            "binaries/ffmpeg/ffmpeg",
+            "binaries/ffmpeg/ffprobe"
+        ],
+        "icon": ["icons/icon.png", "icons/icon.ico", "icons/icon.icns"],
+        "longDescription": "A powerful video downloader for YouTube and X (Twitter) with automatic updates and simple interface",
+        "resources": [],
+        "shortDescription": "Download videos from YouTube and X",
+        "targets": "all",
+        "windows": {
+            "digestAlgorithm": "sha256",
+            "certificateThumbprint": null,
+            "timestampUrl": "",
+            "webviewInstallMode": {
+                "type": "embedBootstrapper"
+            }
         }
-      ]
+    },
+    "plugins": {
+        "updater": {
+            "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEQ2NEQ2NzhCQUE5MzY3QTEKUldTaFo1T3FpMmROMWtiYjJCQlJtNkIydHo5Z3lsZmJUZ2QzUDFKRnM2bnVaOU9HWjdDM1E0R3AK",
+            "endpoints": [
+                "https://github.com/BurgessTheGamer/ripVID/releases/latest/download/latest.json"
+            ]
+        }
+    },
+    "app": {
+        "windows": [
+            {
+                "fullscreen": false,
+                "height": 700,
+                "resizable": true,
+                "width": 900,
+                "center": true,
+                "decorations": false,
+                "transparent": false,
+                "alwaysOnTop": false,
+                "skipTaskbar": false,
+                "theme": "Dark",
+                "visible": false
+            }
+        ],
+        "security": {
+            "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://api.github.com https://github.com; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;",
+            "capabilities": [
+                {
+                    "identifier": "default",
+                    "windows": ["main"],
+                    "permissions": [
+                        "core:default",
+                        "core:webview:allow-webview-close",
+                        "core:webview:allow-webview-position",
+                        "core:webview:allow-webview-size",
+                        "core:window:allow-show",
+                        "core:window:allow-close",
+                        "core:window:allow-minimize",
+                        "core:window:allow-maximize",
+                        "core:window:allow-unmaximize",
+                        "core:window:allow-is-maximized",
+                        "core:window:allow-start-dragging",
+                        "shell:allow-open",
+                        "shell:allow-execute",
+                        "shell:allow-spawn",
+                        "shell:default",
+                        "dialog:allow-save"
+                    ]
+                }
+            ]
+        }
     }
-  }
 }

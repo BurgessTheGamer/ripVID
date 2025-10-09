@@ -3,311 +3,434 @@
     windows_subsystem = "windows"
 )]
 
-use std::process::Command;
+use std::collections::HashMap;
 use std::fs;
-use tauri::Emitter;
+use std::process::Command;
+use std::sync::Arc;
+use tauri::Manager;
 use tauri_plugin_shell::ShellExt;
-use serde::{Deserialize, Serialize};
-use serde_json;
-use regex::Regex;
+use tokio::sync::Mutex;
+use tracing::{error, info, warn};
 
-#[derive(Debug, Serialize, Deserialize)]
-struct DownloadProgress {
-    percent: f32,
-    speed: String,
-    eta: String,
+mod download;
+mod errors;
+mod logging;
+mod validation;
+mod ytdlp_updater;
+
+use download::{
+    cancel_download, download_content_with_smart_retry, BrowserConfig, DownloadHandle, DownloadType,
+};
+use validation::validate_path;
+use ytdlp_updater::YtdlpUpdater;
+
+/// Application state shared across all commands
+struct AppState {
+    ytdlp_updater: Arc<Mutex<YtdlpUpdater>>,
+    active_downloads: Arc<Mutex<HashMap<String, DownloadHandle>>>,
 }
 
+/// Detect the platform from a URL
 #[tauri::command]
 async fn detect_platform(url: String) -> Result<String, String> {
+    info!("Detecting platform for URL: {}", url);
+
     if url.contains("youtube.com") || url.contains("youtu.be") {
         Ok("youtube".to_string())
     } else if url.contains("x.com") || url.contains("twitter.com") {
         Ok("x".to_string())
+    } else if url.contains("facebook.com") || url.contains("fb.watch") {
+        Ok("facebook".to_string())
+    } else if url.contains("instagram.com") {
+        Ok("instagram".to_string())
+    } else if url.contains("tiktok.com") {
+        Ok("tiktok".to_string())
     } else {
+        warn!("Unsupported platform: {}", url);
         Err("Unsupported platform".to_string())
     }
 }
 
+/// Get video information using yt-dlp
 #[tauri::command]
 async fn get_video_info(url: String, app: tauri::AppHandle) -> Result<String, String> {
-    let output = app.shell()
+    info!("Fetching video info for: {}", url);
+
+    let output = app
+        .shell()
         .sidecar("yt-dlp")
-        .map_err(|e| e.to_string())?
+        .map_err(|e| {
+            error!("Failed to create sidecar: {}", e);
+            e.to_string()
+        })?
         .args(&["--no-playlist", "--dump-json", &url])
         .output()
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| {
+            error!("Failed to execute yt-dlp: {}", e);
+            e.to_string()
+        })?;
 
     if output.status.success() {
-        Ok(String::from_utf8_lossy(&output.stdout).to_string())
+        let json_output = String::from_utf8_lossy(&output.stdout).to_string();
+        info!("Successfully fetched video info");
+        Ok(json_output)
     } else {
-        Err(String::from_utf8_lossy(&output.stderr).to_string())
+        let error_msg = String::from_utf8_lossy(&output.stderr).to_string();
+        error!("Failed to fetch video info: {}", error_msg);
+        Err(error_msg)
     }
 }
 
+/// Download video with specified quality
+/// Uses smart retry: tries without cookies first, auto-retries with cookies if needed
 #[tauri::command]
 async fn download_video(
     url: String,
     output_path: String,
-    _quality: String,
+    quality: String,
+    _use_browser_cookies: Option<bool>, // Deprecated but kept for API compatibility
     window: tauri::WebviewWindow,
     app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
-    let args = vec![
-        url.clone(),
-        "--no-playlist".to_string(),
-        "-f".to_string(),
-        "bestvideo[ext=mp4][vcodec^=avc]+bestaudio[ext=m4a]/best[ext=mp4]/best".to_string(),  // Force H.264 codec, NOT AV1
-        "--merge-output-format".to_string(),
-        "mp4".to_string(),
-        "-o".to_string(),
-        output_path.clone(),
-        "--progress".to_string(),
-        "--newline".to_string(),
-    ];
+    info!("Video download requested: url={}, quality={}", url, quality);
 
-    println!("Running yt-dlp with args: {:?}", args);
-
-    let (mut rx, _child) = app.shell()
-        .sidecar("yt-dlp")
-        .map_err(|e| format!("Failed to create sidecar: {}", e))?
-        .args(&args)
-        .spawn()
-        .map_err(|e| format!("Failed to spawn yt-dlp: {}", e))?;
-
-    // Emit download started event immediately
-    window.emit("download-started", output_path.clone()).ok();
-
-    let window_clone = window.clone();
-    let window_clone2 = window.clone();
-    let window_clone3 = window.clone();
-
-    // Spawn async task to handle command events
-    tauri::async_runtime::spawn(async move {
-        use tauri_plugin_shell::process::CommandEvent;
-
-        while let Some(event) = rx.recv().await {
-            match event {
-                CommandEvent::Stdout(line_data) => {
-                    let line = String::from_utf8_lossy(&line_data).to_string();
-                    println!("[stdout] {}", line);
-
-                    if line.contains("[download]") && line.contains("%") {
-                        if let Some(percent_match) = Regex::new(r"(\d+(?:\.\d+)?)%").unwrap().captures(&line) {
-                            let percent: f32 = percent_match[1].parse().unwrap_or(0.0);
-
-                            let speed = if let Some(speed_match) = Regex::new(r"at\s+(\S+)").unwrap().captures(&line) {
-                                speed_match[1].to_string()
-                            } else {
-                                "---".to_string()
-                            };
-
-                            let eta = if let Some(eta_match) = Regex::new(r"ETA\s+(\S+)").unwrap().captures(&line) {
-                                eta_match[1].to_string()
-                            } else {
-                                "--:--".to_string()
-                            };
-
-                            let progress = DownloadProgress {
-                                percent,
-                                speed,
-                                eta,
-                            };
-                            window_clone.emit("download-progress", &progress).ok();
-                        }
-                    }
-                }
-                CommandEvent::Stderr(line_data) => {
-                    let line = String::from_utf8_lossy(&line_data).to_string();
-                    println!("[stderr] {}", line);
-
-                    // Emit status messages for important events
-                    if line.contains("Sleeping") || line.contains("rate limit") {
-                        window_clone2.emit("download-status", line.clone()).ok();
-                    }
-                }
-                CommandEvent::Terminated(payload) => {
-                    if let Some(code) = payload.code {
-                        if code == 0 {
-                            window_clone3.emit("download-complete", serde_json::json!({
-                                "success": true,
-                                "path": output_path
-                            })).ok();
-                        } else {
-                            window_clone3.emit("download-complete", serde_json::json!({
-                                "success": false,
-                                "error": format!("Exit code: {}", code)
-                            })).ok();
-                        }
-                    } else {
-                        window_clone3.emit("download-complete", serde_json::json!({
-                            "success": false,
-                            "error": "Process terminated without exit code"
-                        })).ok();
-                    }
-                }
-                _ => {}
-            }
-        }
-    });
-
-    // Return immediately - download is running in background
-    Ok("Download started successfully".to_string())
+    // Use smart retry - no manual cookie configuration needed
+    download_content_with_smart_retry(
+        url,
+        output_path,
+        DownloadType::Video { quality },
+        window,
+        app,
+        state.ytdlp_updater.clone(),
+        state.active_downloads.clone(),
+    )
+    .await
+    .map_err(|e| e.to_string())
 }
 
+/// Download audio (MP3)
+/// Uses smart retry: tries without cookies first, auto-retries with cookies if needed
+#[tauri::command]
+async fn download_audio(
+    url: String,
+    output_path: String,
+    _use_browser_cookies: Option<bool>, // Deprecated but kept for API compatibility
+    window: tauri::WebviewWindow,
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<String, String> {
+    info!("Audio download requested: url={}", url);
+
+    // Use smart retry - no manual cookie configuration needed
+    download_content_with_smart_retry(
+        url,
+        output_path,
+        DownloadType::Audio,
+        window,
+        app,
+        state.ytdlp_updater.clone(),
+        state.active_downloads.clone(),
+    )
+    .await
+    .map_err(|e| e.to_string())
+}
+
+/// Cancel an active download
+#[tauri::command]
+async fn cancel_download_command(
+    download_id: String,
+    window: tauri::WebviewWindow,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    info!("Cancel requested for download: {}", download_id);
+
+    cancel_download(download_id, state.active_downloads.clone(), window)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Create a directory
 #[tauri::command]
 fn create_directory(path: String) -> Result<(), String> {
-    fs::create_dir_all(&path).map_err(|e| e.to_string())
+    info!("Creating directory: {}", path);
+    fs::create_dir_all(&path).map_err(|e| {
+        error!("Failed to create directory {}: {}", path, e);
+        e.to_string()
+    })
 }
 
+/// Open file location in the system file manager
+/// Gracefully handles missing files by opening parent directory instead
 #[tauri::command]
 fn open_file_location(path: String) -> Result<(), String> {
+    info!("Opening file location: {}", path);
+
+    // Basic security: ensure path is within user's home directory
+    // But be more lenient to handle edge cases
+    let path_buf = std::path::PathBuf::from(&path);
+
+    // Check if path is absolute (basic security)
+    if !path_buf.is_absolute() {
+        warn!("Rejected relative path: {}", path);
+        return Err("Invalid path: must be absolute".to_string());
+    }
+
+    // Ensure path is within safe directories
+    if let Some(home) = dirs::home_dir() {
+        if !path.starts_with(home.to_string_lossy().as_ref()) {
+            warn!("Path outside home directory: {}", path);
+            return Err("Access denied: path outside allowed directories".to_string());
+        }
+    }
+
+    // Try to open the exact file if it exists
+    if path_buf.exists() && path_buf.is_file() {
+        info!("File exists, opening with file manager");
+
+        #[cfg(target_os = "windows")]
+        {
+            let normalized_path = path.replace("/", "\\");
+            let result = Command::new("explorer")
+                .args(&["/select,", &normalized_path])
+                .spawn();
+
+            return match result {
+                Ok(_) => {
+                    info!("Successfully opened Windows Explorer");
+                    Ok(())
+                }
+                Err(e) => {
+                    warn!("Failed to open with Explorer: {}", e);
+                    Err(format!("Failed to open file manager: {}", e))
+                }
+            };
+        }
+
+        #[cfg(not(target_os = "windows"))]
+        {
+            // For macOS/Linux, continue to platform-specific code below
+        }
+    } else {
+        // File doesn't exist - try to open parent directory instead
+        warn!(
+            "File not found: {}. Attempting to open parent directory.",
+            path
+        );
+
+        if let Some(parent) = path_buf.parent() {
+            if parent.exists() {
+                info!("Opening parent directory: {:?}", parent);
+                let parent_str = parent.to_string_lossy().to_string();
+                return open_folder_fallback(parent_str);
+            }
+        }
+
+        // Neither file nor parent exists
+        return Err("File not found. It may have been moved or deleted.".to_string());
+    }
+
+    // macOS/Linux file opening (file is confirmed to exist at this point)
+    #[cfg(target_os = "macos")]
+    {
+        let path_str = path.clone();
+        let result = Command::new("open").args(&["-R", &path_str]).spawn();
+
+        match result {
+            Ok(_) => {
+                info!("Successfully opened Finder");
+                return Ok(());
+            }
+            Err(e) => {
+                warn!("Failed to open with Finder: {}", e);
+                return open_folder_fallback(path_str);
+            }
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        let path_str = path.clone();
+        if let Some(parent) = path_buf.parent() {
+            let parent_str = parent.to_string_lossy().to_string();
+
+            // Try xdg-open first
+            if Command::new("xdg-open").arg(&parent_str).spawn().is_ok() {
+                info!("Successfully opened file manager with xdg-open");
+                return Ok(());
+            }
+
+            // Try nautilus (GNOME)
+            if Command::new("nautilus")
+                .arg("--select")
+                .arg(&path_str)
+                .spawn()
+                .is_ok()
+            {
+                info!("Successfully opened Nautilus");
+                return Ok(());
+            }
+
+            // Try dolphin (KDE)
+            if Command::new("dolphin")
+                .arg("--select")
+                .arg(&path_str)
+                .spawn()
+                .is_ok()
+            {
+                info!("Successfully opened Dolphin");
+                return Ok(());
+            }
+
+            return open_folder_fallback(parent_str);
+        }
+        return Err("Could not open file location on Linux".to_string());
+    }
+
+    #[allow(unreachable_code)]
+    Err("Could not open file location".to_string())
+}
+
+/// Helper function to open just the folder
+/// Assumes path has already been validated by caller
+fn open_folder_fallback(path: String) -> Result<(), String> {
+    let path_buf = std::path::PathBuf::from(&path);
+
+    let folder_path = if path_buf.is_file() {
+        path_buf
+            .parent()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_else(|| path.clone())
+    } else {
+        path.clone()
+    };
+
+    info!("Opening folder: {}", folder_path);
+
     #[cfg(target_os = "windows")]
     {
         Command::new("explorer")
-            .args(&["/select,", &path])
+            .arg(&folder_path.replace("/", "\\"))
             .spawn()
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| {
+                error!("Failed to open folder: {}", e);
+                format!("Failed to open folder: {}", e)
+            })?;
     }
 
     #[cfg(target_os = "macos")]
     {
         Command::new("open")
-            .args(&["-R", &path])
+            .arg(&folder_path)
             .spawn()
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| {
+                error!("Failed to open folder: {}", e);
+                format!("Failed to open folder: {}", e)
+            })?;
     }
 
     #[cfg(target_os = "linux")]
     {
-        // Try to open the parent directory
-        if let Some(parent) = std::path::Path::new(&path).parent() {
-            Command::new("xdg-open")
-                .arg(parent)
-                .spawn()
-                .map_err(|e| e.to_string())?;
-        }
+        Command::new("xdg-open")
+            .arg(&folder_path)
+            .spawn()
+            .map_err(|e| {
+                error!("Failed to open folder: {}", e);
+                format!("Failed to open folder: {}", e)
+            })?;
     }
 
     Ok(())
 }
 
-#[tauri::command]
-async fn download_audio(
-    url: String,
-    output_path: String,
-    window: tauri::WebviewWindow,
-    app: tauri::AppHandle,
-) -> Result<String, String> {
-    let args = vec![
-        url.clone(),
-        "--no-playlist".to_string(),
-        "-x".to_string(),
-        "--audio-format".to_string(),
-        "mp3".to_string(),
-        "--audio-quality".to_string(),
-        "0".to_string(),
-        "--embed-thumbnail".to_string(),
-        "--add-metadata".to_string(),
-        "-o".to_string(),
-        output_path.clone(),
-        "--progress".to_string(),
-        "--newline".to_string(),
-    ];
-
-    println!("Running yt-dlp with args: {:?}", args);
-
-    let (mut rx, _child) = app.shell()
-        .sidecar("yt-dlp")
-        .map_err(|e| format!("Failed to create sidecar: {}", e))?
-        .args(&args)
-        .spawn()
-        .map_err(|e| format!("Failed to spawn yt-dlp: {}", e))?;
-
-    // Emit download started event immediately
-    window.emit("download-started", output_path.clone()).ok();
-
-    let window_clone = window.clone();
-    let window_clone2 = window.clone();
-    let window_clone3 = window.clone();
-
-    // Spawn async task to handle command events
-    tauri::async_runtime::spawn(async move {
-        use tauri_plugin_shell::process::CommandEvent;
-
-        while let Some(event) = rx.recv().await {
-            match event {
-                CommandEvent::Stdout(line_data) => {
-                    let line = String::from_utf8_lossy(&line_data).to_string();
-                    println!("[stdout] {}", line);
-
-                    if line.contains("[download]") && line.contains("%") {
-                        if let Some(percent_match) = Regex::new(r"(\d+(?:\.\d+)?)%").unwrap().captures(&line) {
-                            let percent: f32 = percent_match[1].parse().unwrap_or(0.0);
-
-                            let speed = if let Some(speed_match) = Regex::new(r"at\s+(\S+)").unwrap().captures(&line) {
-                                speed_match[1].to_string()
-                            } else {
-                                "---".to_string()
-                            };
-
-                            let eta = if let Some(eta_match) = Regex::new(r"ETA\s+(\S+)").unwrap().captures(&line) {
-                                eta_match[1].to_string()
-                            } else {
-                                "--:--".to_string()
-                            };
-
-                            let progress = DownloadProgress {
-                                percent,
-                                speed,
-                                eta,
-                            };
-                            window_clone.emit("download-progress", &progress).ok();
-                        }
-                    }
-                }
-                CommandEvent::Stderr(line_data) => {
-                    let line = String::from_utf8_lossy(&line_data).to_string();
-                    println!("[stderr] {}", line);
-
-                    // Emit status messages for important events
-                    if line.contains("Sleeping") || line.contains("rate limit") {
-                        window_clone2.emit("download-status", line.clone()).ok();
-                    }
-                }
-                CommandEvent::Terminated(payload) => {
-                    if let Some(code) = payload.code {
-                        if code == 0 {
-                            window_clone3.emit("download-complete", serde_json::json!({
-                                "success": true,
-                                "path": output_path
-                            })).ok();
-                        } else {
-                            window_clone3.emit("download-complete", serde_json::json!({
-                                "success": false,
-                                "error": format!("Exit code: {}", code)
-                            })).ok();
-                        }
-                    } else {
-                        window_clone3.emit("download-complete", serde_json::json!({
-                            "success": false,
-                            "error": "Process terminated without exit code"
-                        })).ok();
-                    }
-                }
-                _ => {}
-            }
-        }
-    });
-
-    // Return immediately - download is running in background
-    Ok("Audio download started successfully".to_string())
-}
-
+/// Move a file to the recycle bin
 #[tauri::command]
 fn recycle_file(path: String) -> Result<(), String> {
-    trash::delete(&path).map_err(|e| e.to_string())
+    info!("Moving file to recycle bin: {}", path);
+    trash::delete(&path).map_err(|e| {
+        error!("Failed to recycle file {}: {}", path, e);
+        e.to_string()
+    })
+}
+
+/// Check if a file exists at the given path
+#[tauri::command]
+fn file_exists(path: String) -> Result<bool, String> {
+    let path_buf = std::path::PathBuf::from(&path);
+    Ok(path_buf.exists() && path_buf.is_file())
+}
+
+/// Scan downloads folders and return list of actual files
+#[tauri::command]
+async fn scan_downloads_folder() -> Result<Vec<serde_json::Value>, String> {
+    use serde_json::json;
+
+    let home = dirs::home_dir().ok_or("Could not determine home directory")?;
+    let ripvid_base = home.join("Videos").join("ripVID");
+
+    let mut files = Vec::new();
+
+    // Scan MP4 folder
+    let mp4_dir = ripvid_base.join("MP4");
+    if mp4_dir.exists() {
+        if let Ok(entries) = fs::read_dir(&mp4_dir) {
+            for entry in entries.flatten() {
+                if let Ok(metadata) = entry.metadata() {
+                    if metadata.is_file() {
+                        let path = entry.path();
+                        let filename = path
+                            .file_name()
+                            .and_then(|n| n.to_str())
+                            .unwrap_or("unknown");
+
+                        files.push(json!({
+                            "path": path.to_string_lossy().to_string(),
+                            "filename": filename,
+                            "format": "mp4",
+                            "size": metadata.len(),
+                            "modified": metadata.modified()
+                                .ok()
+                                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                                .map(|d| d.as_secs())
+                        }));
+                    }
+                }
+            }
+        }
+    }
+
+    // Scan MP3 folder
+    let mp3_dir = ripvid_base.join("MP3");
+    if mp3_dir.exists() {
+        if let Ok(entries) = fs::read_dir(&mp3_dir) {
+            for entry in entries.flatten() {
+                if let Ok(metadata) = entry.metadata() {
+                    if metadata.is_file() {
+                        let path = entry.path();
+                        let filename = path
+                            .file_name()
+                            .and_then(|n| n.to_str())
+                            .unwrap_or("unknown");
+
+                        files.push(json!({
+                            "path": path.to_string_lossy().to_string(),
+                            "filename": filename,
+                            "format": "mp3",
+                            "size": metadata.len(),
+                            "modified": metadata.modified()
+                                .ok()
+                                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                                .map(|d| d.as_secs())
+                        }));
+                    }
+                }
+            }
+        }
+    }
+
+    info!("Scanned downloads folder, found {} files", files.len());
+    Ok(files)
 }
 
 fn main() {
@@ -315,14 +438,52 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .setup(|app| {
+            // Initialize logging
+            let app_data_dir = app
+                .path()
+                .app_data_dir()
+                .unwrap_or_else(|_| std::path::PathBuf::from("."));
+
+            if let Err(e) = logging::init_logging(app_data_dir.clone()) {
+                eprintln!("Failed to initialize logging: {}", e);
+            }
+
+            info!("ripVID application starting...");
+            info!("App data directory: {:?}", app_data_dir);
+
+            // Initialize yt-dlp updater
+            let updater = YtdlpUpdater::new(app.handle().clone());
+
+            // Check for updates on startup (non-blocking)
+            let updater_clone = updater.clone_for_background();
+            tauri::async_runtime::spawn(async move {
+                match updater_clone.ensure_updated().await {
+                    Ok(path) => info!("yt-dlp ready at: {:?}", path),
+                    Err(e) => warn!("Failed to update yt-dlp: {}", e),
+                }
+            });
+
+            // Initialize app state
+            app.manage(AppState {
+                ytdlp_updater: Arc::new(Mutex::new(updater)),
+                active_downloads: Arc::new(Mutex::new(HashMap::new())),
+            });
+
+            info!("Application setup complete");
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             detect_platform,
             get_video_info,
             download_video,
             download_audio,
+            cancel_download_command,
             create_directory,
             open_file_location,
-            recycle_file
+            recycle_file,
+            file_exists,
+            scan_downloads_folder
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

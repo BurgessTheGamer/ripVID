@@ -1,0 +1,50 @@
+RIPVID TERMS OF SERVICE AND END USER LICENSE AGREEMENT
+
+IMPORTANT: BY DOWNLOADING, INSTALLING, OR USING THIS SOFTWARE, YOU AGREE TO BE BOUND BY THESE TERMS.
+
+1. ACCEPTANCE OF TERMS
+By using ripVID, you acknowledge that you have read, understood, and agree to be bound by these Terms of Service and all applicable laws and regulations.
+
+2. USER RESPONSIBILITIES
+You are solely responsible for:
+- Complying with all applicable laws in your jurisdiction
+- Respecting copyright and intellectual property rights
+- Obtaining necessary permissions before downloading content
+- Using the software only for lawful purposes
+- Complying with the terms of service of third-party platforms
+
+3. PROHIBITED USES
+You may NOT use this software to:
+- Download copyrighted content without permission
+- Violate any laws or regulations
+- Infringe upon the rights of others
+- Engage in any harmful, illegal, or unethical activities
+- Circumvent DRM or other protective measures
+
+4. DISCLAIMER OF WARRANTIES
+THIS SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+
+5. LIMITATION OF LIABILITY
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+6. INDEMNIFICATION
+You agree to indemnify and hold harmless the developers of ripVID from any claims arising from your use of the software.
+
+7. PRIVACY
+ripVID does not collect or transmit personal data. All downloads are processed locally on your device.
+
+8. UPDATES AND MODIFICATIONS
+We reserve the right to update these terms at any time. Continued use of the software constitutes acceptance of any modified terms.
+
+9. TERMINATION
+We reserve the right to terminate your license to use this software if you violate these terms.
+
+10. GOVERNING LAW
+These terms shall be governed by applicable law without regard to conflict of law provisions.
+
+By installing ripVID, you confirm that you have read and agree to these terms.
+
+For the full terms and latest updates, visit: https://github.com/BurgessTheGamer/ripVID
+
+Copyright (c) 2024 ripVID. All rights reserved.
+Licensed under the Apache License, Version 2.0
