@@ -125,10 +125,6 @@ jobs:
       - name: Run tests
         run: bun test || echo "No tests configured yet"
 
-      # Build frontend
-      - name: Build frontend
-        run: bun run build
-
       # Import Code Signing Certificate (macOS)
       - name: Import Code Signing Certificate (macOS)
         if: matrix.platform == 'macos-latest'
