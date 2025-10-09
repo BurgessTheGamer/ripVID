@@ -84,10 +84,14 @@ impl BinaryManager {
             self.emit_progress("setup", 0.0, "Downloading required tools...")?;
 
             // Download in parallel for speed
+            let manager1 = self.clone_for_background();
+            let manager2 = self.clone_for_background();
+            let manager3 = self.clone_for_background();
+
             let handles = vec![
-                tokio::spawn(self.clone_for_background().download_ytdlp()),
-                tokio::spawn(self.clone_for_background().download_ffmpeg()),
-                tokio::spawn(self.clone_for_background().download_ffprobe()),
+                tokio::spawn(async move { manager1.download_ytdlp().await }),
+                tokio::spawn(async move { manager2.download_ffmpeg().await }),
+                tokio::spawn(async move { manager3.download_ffprobe().await }),
             ];
 
             let mut errors = Vec::new();
