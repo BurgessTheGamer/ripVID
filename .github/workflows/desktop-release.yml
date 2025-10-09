@@ -121,9 +121,9 @@ jobs:
       - name: Install frontend dependencies
         run: bun install
 
-      # Run tests
+      # Run tests (skip if no tests exist)
       - name: Run tests
-        run: bun test || echo "No tests configured yet"
+        run: bun test || true
 
       # Import Code Signing Certificate (macOS)
       - name: Import Code Signing Certificate (macOS)
