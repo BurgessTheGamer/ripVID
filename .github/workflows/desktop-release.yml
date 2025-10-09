@@ -164,14 +164,15 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ENABLE_CODE_SIGNING: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
-          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PWD }}
+          # Only enable signing if certificates are available
+          ENABLE_CODE_SIGNING: ${{ secrets.MACOS_CERTIFICATE != '' && secrets.APPLE_SIGNING_IDENTITY || '' }}
+          APPLE_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE != '' && secrets.MACOS_CERTIFICATE || '' }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE != '' && secrets.MACOS_CERTIFICATE_PWD || '' }}
+          APPLE_ID: ${{ secrets.MACOS_CERTIFICATE != '' && secrets.APPLE_ID || '' }}
+          APPLE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE != '' && secrets.APPLE_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ secrets.MACOS_CERTIFICATE != '' && secrets.APPLE_TEAM_ID || '' }}
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE || '' }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PWD || '' }}
         with:
           releaseId: ${{ needs.create-release.outputs.release_id }}
           args: ${{ matrix.args }}
