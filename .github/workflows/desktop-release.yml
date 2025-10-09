@@ -184,6 +184,8 @@ jobs:
           releaseId: ${{ needs.create-release.outputs.release_id }}
           args: ${{ matrix.args }}
           packageManager: bun
+          includeUpdaterJson: true
+          updaterJsonPreferNsis: true
 
       # Upload build artifacts
       - name: Upload Build Artifacts
