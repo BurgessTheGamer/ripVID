@@ -121,6 +121,49 @@ jobs:
       - name: Install frontend dependencies
         run: bun install
 
+      # Download platform-specific ffmpeg binaries
+      - name: Download ffmpeg binaries
+        run: |
+          mkdir -p src-tauri/binaries/ffmpeg
+          if [ "${{ matrix.platform }}" == "macos-latest" ]; then
+            echo "Downloading ffmpeg for macOS..."
+            curl -L -o /tmp/ffmpeg.zip https://evermeet.cx/ffmpeg/ffmpeg-6.0.zip
+            curl -L -o /tmp/ffprobe.zip https://evermeet.cx/ffmpeg/ffprobe-6.0.zip
+            unzip -o /tmp/ffmpeg.zip -d /tmp
+            unzip -o /tmp/ffprobe.zip -d /tmp
+            mv /tmp/ffmpeg src-tauri/binaries/ffmpeg/ffmpeg-aarch64-apple-darwin
+            mv /tmp/ffprobe src-tauri/binaries/ffmpeg/ffprobe-aarch64-apple-darwin
+            chmod +x src-tauri/binaries/ffmpeg/ffmpeg-aarch64-apple-darwin
+            chmod +x src-tauri/binaries/ffmpeg/ffprobe-aarch64-apple-darwin
+            echo "✓ ffmpeg for macOS downloaded"
+          elif [ "${{ matrix.platform }}" == "ubuntu-22.04" ]; then
+            echo "Installing ffmpeg for Linux..."
+            sudo apt-get install -y ffmpeg
+            cp /usr/bin/ffmpeg src-tauri/binaries/ffmpeg/ffmpeg-x86_64-unknown-linux-gnu
+            cp /usr/bin/ffprobe src-tauri/binaries/ffmpeg/ffprobe-x86_64-unknown-linux-gnu
+            chmod +x src-tauri/binaries/ffmpeg/ffmpeg-x86_64-unknown-linux-gnu
+            chmod +x src-tauri/binaries/ffmpeg/ffprobe-x86_64-unknown-linux-gnu
+            echo "✓ ffmpeg for Linux installed"
+          fi
+        shell: bash
+
+      - name: Download ffmpeg binaries (Windows)
+        if: matrix.platform == 'windows-latest'
+        run: |
+          Write-Host "Downloading ffmpeg for Windows..."
+          New-Item -ItemType Directory -Force -Path src-tauri/binaries/ffmpeg
+          Invoke-WebRequest -Uri "https://github.com/GyanD/codexffmpeg/releases/download/6.0/ffmpeg-6.0-essentials_build.zip" -OutFile ffmpeg.zip
+          Expand-Archive -Path ffmpeg.zip -DestinationPath .
+          Copy-Item "ffmpeg-6.0-essentials_build/bin/ffmpeg.exe" "src-tauri/binaries/ffmpeg/ffmpeg-x86_64-pc-windows-msvc.exe"
+          Copy-Item "ffmpeg-6.0-essentials_build/bin/ffprobe.exe" "src-tauri/binaries/ffmpeg/ffprobe-x86_64-pc-windows-msvc.exe"
+          Write-Host "✓ ffmpeg for Windows downloaded"
+        shell: pwsh
+
+      - name: Finalize ffmpeg setup
+        run: |
+          echo "✓ All ffmpeg binaries ready for build"
+        shell: bash
+
       # Run tests (skip if no tests exist)
       - name: Run tests
         run: bun test || true
