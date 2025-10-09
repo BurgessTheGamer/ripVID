@@ -168,6 +168,9 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Tauri updater signing keys
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
           # Only enable signing if certificates are available
           ENABLE_CODE_SIGNING: ${{ secrets.MACOS_CERTIFICATE != '' && secrets.APPLE_SIGNING_IDENTITY || '' }}
           APPLE_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE != '' && secrets.MACOS_CERTIFICATE || '' }}
