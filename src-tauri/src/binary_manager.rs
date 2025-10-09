@@ -91,8 +91,9 @@ impl BinaryManager {
             ];
 
             let mut errors = Vec::new();
+            const BINARY_NAMES: [&str; 3] = ["yt-dlp", "ffmpeg", "ffprobe"];
             for (i, handle) in handles.into_iter().enumerate() {
-                let binary_name = ["yt-dlp", "ffmpeg", "ffprobe"][i];
+                let binary_name = BINARY_NAMES[i];
                 match handle.await {
                     Ok(Ok(())) => {
                         info!("{} downloaded successfully", binary_name);
