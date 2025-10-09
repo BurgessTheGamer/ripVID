@@ -127,22 +127,24 @@ jobs:
 
       # Import Code Signing Certificate (macOS)
       - name: Import Code Signing Certificate (macOS)
-        if: matrix.platform == 'macos-latest' && secrets.MACOS_CERTIFICATE != ''
+        if: matrix.platform == 'macos-latest'
         env:
           MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
           MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
           KEYCHAIN_PWD: ${{ secrets.KEYCHAIN_PWD }}
         run: |
-          echo "$MACOS_CERTIFICATE" | base64 --decode > certificate.p12
-          security create-keychain -p "$KEYCHAIN_PWD" build.keychain
-          security default-keychain -s build.keychain
-          security unlock-keychain -p "$KEYCHAIN_PWD" build.keychain
-          security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PWD" build.keychain
-
-      - name: Skip Code Signing (macOS)
-        if: matrix.platform == 'macos-latest' && secrets.MACOS_CERTIFICATE == ''
-        run: echo "⚠️  No macOS certificate configured - building unsigned app"
+          if [ -n "$MACOS_CERTIFICATE" ]; then
+            echo "Setting up macOS code signing..."
+            echo "$MACOS_CERTIFICATE" | base64 --decode > certificate.p12
+            security create-keychain -p "$KEYCHAIN_PWD" build.keychain
+            security default-keychain -s build.keychain
+            security unlock-keychain -p "$KEYCHAIN_PWD" build.keychain
+            security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
+            security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PWD" build.keychain
+            echo "✅ Certificate imported successfully"
+          else
+            echo "⚠️  No macOS certificate configured - building unsigned app"
+          fi
 
       # Setup Windows Code Signing Certificate
       - name: Setup Windows Code Signing
