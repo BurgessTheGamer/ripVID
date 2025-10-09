@@ -13,11 +13,7 @@
         "active": true,
         "category": "Utility",
         "copyright": "Copyright (c) 2024 ripVID",
-        "externalBin": [
-            "binaries/yt-dlp",
-            "binaries/ffmpeg/ffmpeg",
-            "binaries/ffmpeg/ffprobe"
-        ],
+        "externalBin": [],
         "icon": ["icons/icon.png", "icons/icon.ico", "icons/icon.icns"],
         "longDescription": "A powerful video downloader for YouTube and X (Twitter) with automatic updates and simple interface",
         "resources": [],

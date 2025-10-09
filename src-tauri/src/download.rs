@@ -1,3 +1,4 @@
+use crate::binary_manager::BinaryManager;
 use crate::errors::{
     is_auth_error, is_dpapi_error, is_ffmpeg_error, is_network_error, is_rate_limit_error,
     is_retryable_error, DownloadError,
@@ -260,51 +261,25 @@ fn build_ytdlp_args(
     output_path: &str,
     download_type: &DownloadType,
     browser_config: &BrowserConfig,
-    app: &AppHandle,
+    binary_manager: &BinaryManager,
 ) -> Vec<String> {
     let mut args = vec![url.to_string(), "--no-playlist".to_string()];
 
-    // Add ffmpeg location for video merging and processing
-    // Construct the path manually for both dev and production modes
-    let ffmpeg_path = if cfg!(debug_assertions) {
-        // Dev mode: binaries are in src-tauri/binaries/
-        std::env::current_exe()
-            .ok()
-            .and_then(|exe| exe.parent().map(|p| p.to_path_buf()))
-            .map(|mut p| {
-                p.pop(); // Remove 'target'
-                p.pop(); // Remove 'debug'
-                p.push("binaries");
-                p.push("ffmpeg");
-                p
-            })
-    } else {
-        // Production mode: use resource path
-        app.path()
-            .resolve("binaries/ffmpeg", tauri::path::BaseDirectory::Resource)
-            .ok()
-    };
-
-    if let Some(ffmpeg_dir) = ffmpeg_path {
-        // Validate ffmpeg executables exist
-        let ffmpeg_exe = ffmpeg_dir.join("ffmpeg.exe");
-        let ffprobe_exe = ffmpeg_dir.join("ffprobe.exe");
-
-        if !ffmpeg_exe.exists() {
-            error!("FFmpeg executable not found at: {:?}", ffmpeg_exe);
-            warn!("Continuing without ffmpeg - YouTube and other merges may fail");
-        } else if !ffprobe_exe.exists() {
-            error!("FFprobe executable not found at: {:?}", ffprobe_exe);
-            warn!("Continuing without ffprobe - some processing may fail");
-        } else {
-            // Both executables exist - safe to configure yt-dlp
-            let ffmpeg_path_str = strip_extended_path_prefix(&ffmpeg_dir);
-            args.push("--ffmpeg-location".to_string());
-            args.push(ffmpeg_path_str.clone());
-            info!("✓ Using bundled ffmpeg at: {}", ffmpeg_path_str);
+    // Add ffmpeg location using binary manager
+    match binary_manager.get_binary_path("ffmpeg") {
+        Ok(ffmpeg_path) => {
+            if let Some(ffmpeg_dir) = ffmpeg_path.parent() {
+                let ffmpeg_path_str = strip_extended_path_prefix(ffmpeg_dir);
+                args.push("--ffmpeg-location".to_string());
+                args.push(ffmpeg_path_str.clone());
+                info!("✓ Using runtime-downloaded ffmpeg at: {}", ffmpeg_path_str);
+            } else {
+                warn!("Could not determine ffmpeg directory");
+            }
         }
-    } else {
-        warn!("Could not resolve ffmpeg path, yt-dlp will use system ffmpeg if available");
+        Err(e) => {
+            warn!("Could not get ffmpeg path: {}. yt-dlp will use system ffmpeg if available", e);
+        }
     }
 
     // Add format-specific arguments
@@ -426,6 +401,7 @@ pub async fn download_content(
     app: AppHandle,
     ytdlp_updater: Arc<Mutex<YtdlpUpdater>>,
     active_downloads: Arc<Mutex<std::collections::HashMap<String, DownloadHandle>>>,
+    binary_manager: Arc<BinaryManager>,
 ) -> Result<String, DownloadError> {
     let download_id = Uuid::new_v4().to_string();
 
@@ -435,7 +411,7 @@ pub async fn download_content(
     );
 
     // Build arguments
-    let args = build_ytdlp_args(&url, &output_path, &download_type, &browser_config, &app);
+    let args = build_ytdlp_args(&url, &output_path, &download_type, &browser_config, &binary_manager);
     debug!("yt-dlp args prepared (count: {})", args.len());
 
     // Get yt-dlp path with retry
@@ -638,6 +614,7 @@ pub async fn download_content_with_smart_retry(
     app: AppHandle,
     ytdlp_updater: Arc<Mutex<YtdlpUpdater>>,
     active_downloads: Arc<Mutex<std::collections::HashMap<String, DownloadHandle>>>,
+    binary_manager: Arc<BinaryManager>,
 ) -> Result<String, DownloadError> {
     info!("🔄 Smart download initiated for: {}", url);
 
@@ -657,6 +634,7 @@ pub async fn download_content_with_smart_retry(
         app.clone(),
         ytdlp_updater.clone(),
         active_downloads.clone(),
+        binary_manager.clone(),
     )
     .await
     {
@@ -712,6 +690,7 @@ pub async fn download_content_with_smart_retry(
             app.clone(),
             ytdlp_updater.clone(),
             active_downloads.clone(),
+            binary_manager.clone(),
         )
         .await
         {

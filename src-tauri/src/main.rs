@@ -12,12 +12,14 @@ use tauri_plugin_shell::ShellExt;
 use tokio::sync::Mutex;
 use tracing::{error, info, warn};
 
+mod binary_manager;
 mod download;
 mod errors;
 mod logging;
 mod validation;
 mod ytdlp_updater;
 
+use binary_manager::BinaryManager;
 use download::{
     cancel_download, download_content_with_smart_retry, BrowserConfig, DownloadHandle, DownloadType,
 };
@@ -28,6 +30,7 @@ use ytdlp_updater::YtdlpUpdater;
 struct AppState {
     ytdlp_updater: Arc<Mutex<YtdlpUpdater>>,
     active_downloads: Arc<Mutex<HashMap<String, DownloadHandle>>>,
+    binary_manager: Arc<BinaryManager>,
 }
 
 /// Detect the platform from a URL
@@ -105,6 +108,7 @@ async fn download_video(
         app,
         state.ytdlp_updater.clone(),
         state.active_downloads.clone(),
+        state.binary_manager.clone(),
     )
     .await
     .map_err(|e| e.to_string())
@@ -132,6 +136,7 @@ async fn download_audio(
         app,
         state.ytdlp_updater.clone(),
         state.active_downloads.clone(),
+        state.binary_manager.clone(),
     )
     .await
     .map_err(|e| e.to_string())
@@ -452,7 +457,31 @@ fn main() {
             info!("ripVID application starting...");
             info!("App data directory: {:?}", app_data_dir);
 
-            // Initialize yt-dlp updater
+            // Initialize binary manager for runtime binary downloads
+            info!("Initializing binary manager...");
+            let binary_manager = match BinaryManager::new(app.handle().clone()) {
+                Ok(manager) => Arc::new(manager),
+                Err(e) => {
+                    error!("Failed to initialize binary manager: {}", e);
+                    return Err(e.into());
+                }
+            };
+
+            // Ensure all binaries are downloaded/updated (blocks window until ready)
+            info!("Ensuring all binaries are ready...");
+            let manager_clone = binary_manager.clone();
+            tauri::async_runtime::block_on(async move {
+                match manager_clone.ensure_all_binaries().await {
+                    Ok(()) => info!("All binaries ready"),
+                    Err(e) => {
+                        error!("Failed to ensure binaries: {}", e);
+                        return Err(e);
+                    }
+                }
+                Ok::<(), String>(())
+            })?;
+
+            // Initialize yt-dlp updater (legacy - will be replaced by binary manager)
             let updater = YtdlpUpdater::new(app.handle().clone());
 
             // Check for updates on startup (non-blocking)
@@ -468,6 +497,7 @@ fn main() {
             app.manage(AppState {
                 ytdlp_updater: Arc::new(Mutex::new(updater)),
                 active_downloads: Arc::new(Mutex::new(HashMap::new())),
+                binary_manager: binary_manager.clone(),
             });
 
             info!("Application setup complete");
