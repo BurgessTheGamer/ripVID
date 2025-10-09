@@ -459,13 +459,7 @@ fn main() {
 
             // Initialize binary manager for runtime binary downloads
             info!("Initializing binary manager...");
-            let binary_manager = match BinaryManager::new(app.handle().clone()) {
-                Ok(manager) => Arc::new(manager),
-                Err(e) => {
-                    error!("Failed to initialize binary manager: {}", e);
-                    return Err(e.into());
-                }
-            };
+            let binary_manager = Arc::new(BinaryManager::new(app.handle().clone()));
 
             // Ensure all binaries are downloaded/updated (blocks window until ready)
             info!("Ensuring all binaries are ready...");
