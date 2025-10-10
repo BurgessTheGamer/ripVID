@@ -163,6 +163,29 @@ jobs:
           }
         shell: pwsh
 
+      # Verify signing keys are available
+      - name: Verify Tauri Signing Keys
+        run: |
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            echo "❌ ERROR: TAURI_SIGNING_PRIVATE_KEY is not set!"
+            echo "Please check that the TAURI_PRIVATE_KEY secret exists in GitHub"
+            exit 1
+          else
+            echo "✅ TAURI_SIGNING_PRIVATE_KEY is set (length: ${#TAURI_SIGNING_PRIVATE_KEY})"
+          fi
+
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" ]; then
+            echo "❌ ERROR: TAURI_SIGNING_PRIVATE_KEY_PASSWORD is not set!"
+            echo "Please check that the TAURI_KEY_PASSWORD secret exists in GitHub"
+            exit 1
+          else
+            echo "✅ TAURI_SIGNING_PRIVATE_KEY_PASSWORD is set"
+          fi
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+        shell: bash
+
       # Build Tauri App
       - name: Build Tauri App
         uses: tauri-apps/tauri-action@v0
