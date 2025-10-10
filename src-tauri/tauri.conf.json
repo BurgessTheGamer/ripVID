@@ -11,6 +11,7 @@
     },
     "bundle": {
         "active": true,
+        "createUpdaterArtifacts": true,
         "category": "Utility",
         "copyright": "Copyright (c) 2024 ripVID",
         "externalBin": [],
