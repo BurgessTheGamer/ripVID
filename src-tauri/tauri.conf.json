@@ -2,7 +2,7 @@
     "$schema": "../node_modules/@tauri-apps/cli/schema.json",
     "identifier": "com.ripvid.desktop",
     "productName": "ripVID",
-    "version": "2.1.0",
+    "version": "2.1.1",
     "build": {
         "beforeDevCommand": "npm run dev",
         "beforeBuildCommand": "bun run build",
