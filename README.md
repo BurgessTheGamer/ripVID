@@ -4,11 +4,11 @@
 https://github.com/user-attachments/assets/db3929ad-2251-4d2b-8641-d3c9e34bb72d
 
 
-A beautiful, modern desktop application for downloading videos from YouTube and X (Twitter) at the highest quality. Built with Tauri, React, TypeScript, and a custom purple-themed UI.
+A beautiful, modern desktop application for downloading videos from URL at the highest quality. Built with Tauri, React, TypeScript, and a custom purple-themed UI.
 
 ## Features
 
-- 🎥 Download videos from YouTube and X/Twitter
+- 🎥 Download videos from YouTube,TikTok. X Facebook, and many more!
 - 🚀 Highest quality video downloads (H.264/MP4)
 - 🎨 Modern, minimalist UI with purple accents
 - 🔍 Auto-detect platform from URL
