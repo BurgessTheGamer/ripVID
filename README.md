@@ -1,5 +1,9 @@
 # ripVID
 
+
+https://github.com/user-attachments/assets/db3929ad-2251-4d2b-8641-d3c9e34bb72d
+
+
 A beautiful, modern desktop application for downloading videos from YouTube and X (Twitter) at the highest quality. Built with Tauri, React, TypeScript, and a custom purple-themed UI.
 
 ## Features
