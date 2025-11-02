@@ -149,37 +149,6 @@ ripVID uses a sophisticated binary management system that:
 - **GitHub Actions** - CI/CD pipeline
 - **Cloudflare Workers** - Metadata API
 
-## 🔐 Auto-Update Configuration
-
-For developers setting up auto-updates:
-
-1. **Generate Signing Keys**:
-   ```bash
-   bunx @tauri-apps/cli signer generate -w ~/.tauri/myapp.key
-   ```
-
-2. **Add to GitHub Secrets**:
-   - `TAURI_PRIVATE_KEY` - Your private key
-   - `TAURI_KEY_PASSWORD` - Your key password
-
-3. **Configure `tauri.conf.json`**:
-   ```json
-   {
-     "bundle": {
-       "createUpdaterArtifacts": true  // Required for Tauri v2!
-     },
-     "plugins": {
-       "updater": {
-         "active": true,
-         "pubkey": "YOUR_PUBLIC_KEY",
-         "endpoints": [
-           "https://github.com/USER/REPO/releases/latest/download/latest.json"
-         ]
-       }
-     }
-   }
-   ```
-
 ## 🐛 Troubleshooting
 
 ### Binary Download Issues
